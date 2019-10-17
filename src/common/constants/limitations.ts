@@ -8,7 +8,7 @@ export const user = {
 		regex: /^.{1,}@.{1,}$/
 	},
 	password: {
-		minlength: 16,
+		minlength: 8,
 		maxlength: 64,
 		regex: /^\w{8,64}$/
 	},
