@@ -1,8 +1,9 @@
 import * as React from "react";
-import { withRouter, RouteComponentProps } from "react-router-dom";
+import { RouteComponentProps } from "react-router-dom";
 import axios, { AxiosResponse } from "axios";
-import { Button, TextField, InputAdornment } from "@material-ui/core";
+import { Button, TextField, InputAdornment, ListItem } from "@material-ui/core";
 
+import * as UserError from "common/constants/errorMessages/UserError";
 import * as limitations from "common/constants/limitations";
 import * as User from "common/models/User";
 
@@ -22,25 +23,97 @@ const isAvailable = async (key: string, value: string): Promise<boolean> => {
 		});
 };
 
-type registerFormElement = {
-	label: string;
-	type: string;
-	value: keyof User.Type;
-	validator: RegExp;
+const validators = {
+	uid: async (value: string): Promise<string> => {
+		if (value.length > limitations.user.uid.maxlength) {
+			return UserError.uid.TOO_LONG;
+		}
+
+		if (!limitations.user.uid.validate.exec(value)) {
+			return UserError.uid.INVALID;
+		}
+
+		if (await isAvailable("uid", value)) {
+			return "";
+		}
+
+		return UserError.uid.NOT_AVAILABLE;
+	},
+	email: async (value: string): Promise<string> => {
+		if (value.length > limitations.user.email.maxlength) {
+			return UserError.email.TOO_LONG;
+		}
+
+		if (!limitations.user.email.validate.exec(value)) {
+			return UserError.email.INVALID;
+		}
+
+		if (await isAvailable("email", value)) {
+			return "";
+		}
+
+		return UserError.email.NOT_AVAILABLE;
+	},
+	password: async (value: string): Promise<string> => {
+		if (value.length < limitations.user.password.minlength) {
+			return UserError.password.TOO_SHORT;
+		}
+
+		if (value.length > limitations.user.password.maxlength) {
+			return UserError.password.TOO_LONG;
+		}
+
+		if (limitations.user.password.validate.exec(value)) {
+			return "";
+		}
+
+		return UserError.password.INVALID;
+	},
+	name: async (value: string): Promise<string> => {
+		if (value.length < limitations.user.name.minlength) {
+			return UserError.name.TOO_SHORT;
+		}
+
+		if (value.length > limitations.user.name.maxlength) {
+			return UserError.name.TOO_LONG;
+		}
+
+		return "";
+	}
 };
 
-const normalFormElements: registerFormElement[] = [
+type Field = {
+	key: keyof User.Type;
+	label: string;
+	type: string;
+	InputProps?: {
+		startAdornment: any;
+	};
+};
+
+const fields: Field[] = [
 	{
-		label: "Name",
+		key: "uid",
+		label: "ID",
 		type: "text",
-		value: "name",
-		validator: limitations.user.name.regex
+		InputProps: {
+			startAdornment: <InputAdornment position="start">@</InputAdornment>
+		}
 	},
 	{
+		key: "email",
+		label: "E-mail",
+		type: "email"
+	},
+	{
+		key: "password",
 		label: "Password",
-		type: "password",
-		value: "password",
-		validator: limitations.user.password.regex
+		type: "password"
+	},
+	{
+		key: "name",
+		label: "Username",
+		type: "text"
 	}
 ];
 
@@ -54,132 +127,79 @@ const Register: React.FunctionComponent<RouteComponentProps> = (
 		name: ""
 	});
 
-	const [missing, setMissing] = React.useState({
-		uid: true,
-		email: true,
-		password: true,
-		name: true
+	const [helperText, setHelperText] = React.useState<User.Type>({
+		uid: UserError.uid.INVALID,
+		email: UserError.email.INVALID,
+		password: UserError.password.INVALID,
+		name: UserError.name.TOO_SHORT
 	});
 
 	const onChange = (
 		event: React.ChangeEvent<HTMLInputElement>,
 		key: string,
-		callback: (value: string) => void
+		callback: (value: string) => Promise<string>
 	): void => {
 		const { value } = event.target;
 		setUser({ ...user, [key]: value });
-		callback(value);
+		callback(value).then((text: string) => {
+			setHelperText({
+				...helperText,
+				[key]: text
+			});
+		});
 	};
 
-	const onSubmitHandler = (event: React.FormEvent<HTMLFormElement>): void => {
-		event.preventDefault();
-		const { uid, email, password, name } = user;
-		const fd = new FormData();
-		fd.append("uid", uid);
-		fd.append("email", email);
-		fd.append("password", password);
-		fd.append("name", name);
-
-		axios
-			.post("/api/register", fd)
-			.then(
-				(
-					res: AxiosResponse<{
-						success: boolean;
-						redirect: string;
-						error?: any;
-					}>
-				) => {
-					const { success, error } = res.data;
-					if (success) {
-						props.history.push("/");
+	const onSubmit = React.useCallback(
+		(event: React.FormEvent<HTMLFormElement>): void => {
+			event.preventDefault();
+			axios
+				.post("/api/register", user)
+				.then(
+					(
+						res: AxiosResponse<{
+							success: boolean;
+							redirect: string;
+							error?: any;
+						}>
+					) => {
+						const { success, error } = res.data;
+						if (success) {
+							props.history.push("/");
+						}
 					}
-				}
-			);
-	};
+				);
+		},
+		[user]
+	);
 
-	const submitDisabled = (): boolean => {
-		const { uid, email, password, name } = missing;
-		return uid || email || password || name;
-	};
+	const submitDisabled = React.useCallback((): boolean => {
+		const { uid, email, password, name } = helperText;
+		return (
+			uid.length > 0 ||
+			email.length > 0 ||
+			password.length > 0 ||
+			name.length > 0
+		);
+	}, [helperText]);
 
 	return (
-		<form onSubmit={onSubmitHandler}>
-			<TextField
-				required
-				label="ID"
-				name="uid"
-				type="text"
-				value={user.uid}
-				InputProps={{
-					startAdornment: (
-						<InputAdornment position="start">@</InputAdornment>
-					)
-				}}
-				error={missing.uid}
-				onChange={(
-					event: React.ChangeEvent<HTMLInputElement>
-				): void => {
-					const validate = (value: string): void => {
-						(async (): Promise<void> => {
-							const available = await isAvailable("uid", value);
-							setMissing({
-								...missing,
-								uid:
-									limitations.user.uid.regex.exec(value) ===
-										null || !available
-							});
-						})();
-					};
-					onChange(event, "uid", validate);
-				}}
-			/>
-			<TextField
-				required
-				label="E-mail"
-				name="email"
-				type="email"
-				value={user.email}
-				error={missing.email}
-				onChange={(
-					event: React.ChangeEvent<HTMLInputElement>
-				): void => {
-					const validate = (value: string): void => {
-						(async (): Promise<void> => {
-							const available = await isAvailable("email", value);
-							setMissing({
-								...missing,
-								email:
-									limitations.user.email.regex.exec(value) ===
-										null || !available
-							});
-						})();
-					};
-					onChange(event, "email", validate);
-				}}
-			/>
-
-			{normalFormElements.map(e => {
+		<form onSubmit={onSubmit}>
+			{fields.map(field => {
+				const { key, label, type, InputProps } = field;
 				return (
 					<TextField
-						key={e.label}
 						required
-						label={e.label}
-						name={e.label}
-						type={e.type}
-						value={user[e.value]}
-						error={missing[e.value]}
+						key={key}
+						label={label}
+						type={type}
+						value={user[key]}
+						error={Boolean(helperText[key])}
+						helperText={helperText[key]}
+						InputProps={InputProps || {}}
 						onChange={(
 							event: React.ChangeEvent<HTMLInputElement>
 						): void => {
-							const validate = (value: string): void => {
-								const eError = !e.validator.exec(value);
-								setMissing({
-									...missing,
-									[e.value]: eError
-								});
-							};
-							onChange(event, e.value, validate);
+							onChange(event, key, validators[key]);
 						}}
 					/>
 				);
@@ -192,4 +212,4 @@ const Register: React.FunctionComponent<RouteComponentProps> = (
 	);
 };
 
-export default withRouter(Register);
+export default Register;
