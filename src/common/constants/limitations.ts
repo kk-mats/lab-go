@@ -1,21 +1,24 @@
+type validator = (value: string) => boolean | string;
+
 export const user = {
 	uid: {
-		minlength: 0,
-		maxlength: 15,
-		regex: /^[a-z]([a-z0-9-]){0,14}$/
+		minlength: 1,
+		maxlength: 16,
+		validate: /^[a-zA-Z\d](([a-zA-Z\d-]){0,14}[a-zA-Z\d])?$/
 	},
 	email: {
-		regex: /^.{1,}@.{1,}$/
+		maxlength: 128,
+		validate: /^\S+@\S+\.\S+$/
 	},
 	password: {
 		minlength: 8,
-		maxlength: 64,
-		regex: /^\w{8,64}$/
+		maxlength: 128,
+		validate: /^.*(([A-Z].*[0-9])|([0-9].*[A-Z])).*$/
 	},
 	name: {
 		minlength: 1,
 		maxlength: 32,
-		regex: /^.{1,32}$/
+		validate: /^.{1,32}$/
 	}
 };
 
