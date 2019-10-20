@@ -34,23 +34,27 @@ export const isAvailableEmail = async (
 	return result;
 };
 
-export const saveUser = (
+export const saveUser = async (
 	user: User.Type
-): queryResult<{ success: boolean }> => {
+): Promise<queryResult<{ success: boolean }>> => {
 	const result: queryResult<{ success: boolean }> = { success: false };
 
-	(async () => {
-		const uid = await isAvailableUid(user.uid);
-		const email = await isAvailableEmail(user.email);
+	const [uid, email] = await Promise.all([
+		isAvailableUid(user.uid),
+		isAvailableEmail(user.email)
+	]);
 
-		if (!uid.available || !email.available) {
-			result.success = false;
-			result.error = {
-				uid: uid.error,
-				email: email.error
-			};
-		}
-	})();
+	result.success = uid.available && email.available;
+	if (!uid.available) {
+		result.error = `User ID: ${user.uid} is not available.`;
+	}
+	if (!email.available) {
+		result.error = `E-mail: ${user.email} is not available.`;
+	}
+
+	if (!result.success) {
+		return result;
+	}
 
 	const instance = new User.Model();
 	instance.uid = user.uid;
@@ -58,15 +62,12 @@ export const saveUser = (
 	instance.password = user.password;
 	instance.name = user.name;
 
-	let res: queryResult<{ success: boolean }> = { success: false };
-	instance.save(err => {
+	await instance.save(err => {
 		if (err) {
-			res = {
-				success: false,
-				error: err
-			};
+			result.success = false;
+			result.error = err;
 		}
 	});
 
-	return res;
+	return result;
 };
