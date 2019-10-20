@@ -1,7 +1,7 @@
 import * as React from "react";
-import { RouteComponentProps } from "react-router-dom";
+import { useHistory } from "react-router-dom";
 import axios, { AxiosResponse } from "axios";
-import { Button, TextField, InputAdornment, ListItem } from "@material-ui/core";
+import { Button, TextField, InputAdornment, Grid } from "@material-ui/core";
 
 import * as UserError from "common/constants/errorMessages/UserError";
 import * as limitations from "common/constants/limitations";
@@ -117,9 +117,9 @@ const fields: Field[] = [
 	}
 ];
 
-const Register: React.FunctionComponent<RouteComponentProps> = (
-	props: RouteComponentProps
-) => {
+const RegisterForm: React.FunctionComponent = () => {
+	const history = useHistory();
+
 	const [user, setUser] = React.useState<User.Type>({
 		uid: "",
 		email: "",
@@ -164,7 +164,7 @@ const Register: React.FunctionComponent<RouteComponentProps> = (
 					) => {
 						const { success, error } = res.data;
 						if (success) {
-							props.history.push("/");
+							history.push("/");
 						}
 					}
 				);
@@ -184,32 +184,40 @@ const Register: React.FunctionComponent<RouteComponentProps> = (
 
 	return (
 		<form onSubmit={onSubmit}>
-			{fields.map(field => {
-				const { key, label, type, InputProps } = field;
-				return (
-					<TextField
-						required
-						key={key}
-						label={label}
-						type={type}
-						value={user[key]}
-						error={Boolean(helperText[key])}
-						helperText={helperText[key]}
-						InputProps={InputProps || {}}
-						onChange={(
-							event: React.ChangeEvent<HTMLInputElement>
-						): void => {
-							onChange(event, key, validators[key]);
-						}}
-					/>
-				);
-			})}
+			<Grid container spacing={3}>
+				{fields.map(field => {
+					const { key, label, type, InputProps } = field;
+					return (
+						<Grid item key={key} xs={12}>
+							<TextField
+								required
+								fullWidth
+								label={label}
+								type={type}
+								value={user[key]}
+								error={Boolean(helperText[key])}
+								helperText={helperText[key]}
+								InputProps={InputProps || {}}
+								onChange={(
+									event: React.ChangeEvent<HTMLInputElement>
+								): void => {
+									onChange(event, key, validators[key]);
+								}}
+							/>
+						</Grid>
+					);
+				})}
 
-			<Button type="submit" disabled={submitDisabled()}>
-				Submit
-			</Button>
+				<Button
+					type="submit"
+					variant="contained"
+					disabled={submitDisabled()}
+				>
+					Create an account
+				</Button>
+			</Grid>
 		</form>
 	);
 };
 
-export default Register;
+export default RegisterForm;
