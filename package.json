@@ -6,7 +6,7 @@
 	"author": "kk-mats <k.mats.kk@gmail.com>",
 	"dependencies": {
 		"@material-ui/core": "^4.5.0",
-		"axios": "^0.19.0",
+		"axios": "^0.21.1",
 		"express": "^4.17.1",
 		"form-data": "^2.5.1",
 		"http-proxy-middleware": "^0.20.0",
